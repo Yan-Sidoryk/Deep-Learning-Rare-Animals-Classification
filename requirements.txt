@@ -6,14 +6,12 @@ matplotlib==3.7.1
 nbformat>=4.2.0
 seaborn
 plotly
-
-# keras
 Pillow
 opencv-python
 ipython
 
 tqdm
 
-
+focal-loss
 # conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0     # cuda drivers
 # conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia  # i think i dont that but dont delete for now pls
