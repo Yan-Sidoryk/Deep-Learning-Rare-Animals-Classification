@@ -87,10 +87,11 @@ def plot_phylum_counts(metadata):
         text=phylum_counts.values,
         textposition='outside',
         textfont=dict(size=12),
+        customdata=hover_data,
         hovertemplate='<b>%{x}</b><br>' +
                     'Images: <b>%{y}</b> (<b>%{customdata[1]:.2f}%</b>)<br>' +
                     'Families: %{customdata[2]}<br>'
-        customdata=hover_data
+        
     ))
 
     fig.update_layout(
