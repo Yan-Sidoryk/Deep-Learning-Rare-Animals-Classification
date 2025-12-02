@@ -338,9 +338,7 @@ def plot_model_results(history, metric):
         mode='lines',
         name='Train',
         line=dict(width=2, color='#6366f1'),
-        customdata=[metric.title()] * len(train_metric),
-        hovertemplate='<b>Epoch %{x}</b><br>' +
-                    'Train %{customdata}: <b>%{y:.4f}</b><extra></extra>'
+        hovertemplate='Train ' + metric.title() + ': <b>%{y:.4f}</b><extra></extra>'
     ))
 
     # ---- Validation Loss ----
@@ -350,13 +348,12 @@ def plot_model_results(history, metric):
         mode='lines',
         name='Validation',
         line=dict(width=2, color='#ffa500'),
-        customdata=[metric.title()] * len(train_metric),
-        hovertemplate='<b>Epoch %{x}</b><br>' +
-                    'Validation %{customdata}: <b>%{y:.4f}</b><extra></extra>'
+        hovertemplate='Validation ' + metric.title() + ': <b>%{y:.4f}</b><extra></extra>'
     ))
 
     # ---- Layout ----
     fig.update_layout(
+        hovermode='x unified',
         title={
             'text': f'<b>Model {metric.title()}</b>',
             'x': 0.5,
@@ -370,10 +367,9 @@ def plot_model_results(history, metric):
         paper_bgcolor='white',
         plot_bgcolor='white',
         font=dict(size=11),
-
         xaxis=dict(
             showgrid=False,
-            tickfont=dict(size=11)
+            tickfont=dict(size=11),
         ),
         yaxis=dict(
             showgrid=True,
