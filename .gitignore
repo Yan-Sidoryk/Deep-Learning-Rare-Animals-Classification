@@ -1,9 +1,13 @@
-# Dataset
-rare_species/
-rare_species.zip
-
-# IDE settings
-.vscode/
-
-# Python cache
+# Ignore dataset folders and environments
 __pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.env
+.DS_Store
+*.egg-info/
+*.egg
+dist/
+build/
+rare_species/
+*.h5
