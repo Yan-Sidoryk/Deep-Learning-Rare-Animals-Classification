@@ -4,12 +4,13 @@ import math
 import os
 
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
 
 from PIL import Image as PilImage
 
 
-
+# ===== IMAGE EXPLORATION =====
 def explore_image_files(file_paths, explore_values=False):
     ''' Open each image to extract extra info'''
     # Define the variables of smalles and biggest images
@@ -44,6 +45,38 @@ def explore_image_files(file_paths, explore_values=False):
     
 
 
+# ===== DATA PREPROCESSING =====
+def get_distances(metadata, centroids):
+    # Calculate distances to centroids
+    distances = []
+
+    for idx, row in metadata.iterrows():
+        family = row['family']
+        if family in centroids:
+            # Calculate Euclidean distance
+            distance = np.linalg.norm(row['embedding'] - centroids[family])
+            distances.append(distance)
+        else:
+            distances.append(np.nan)
+
+    return distances
+
+
+def distance_to_centroid(train_df, test_df):
+    # Calculate a centroid for each family based on the embedings from the train_df
+    centroids = {}
+
+    for family in train_df['family'].unique():
+        # Get all the embedings for 1 family
+        family_embeddings = train_df[train_df['family'] == family]['embedding'].tolist()
+
+        if len(family_embeddings) > 0:
+            # Stack embeddings and calculate mean
+            embeddings_array = np.stack(family_embeddings)
+            centroids[family] = np.mean(embeddings_array, axis=0)
+    
+    # Return the distances for both train and test based on the centroids of the train
+    return get_distances(train_df, centroids), get_distances(test_df, centroids)
 
 
 
@@ -459,10 +492,78 @@ def plot_images_from_generator(generator, num_batches=False):
         plt.show()
 
 
+def plot_furthest_images_batched(directory, metadata, N, n_cols=10):
+    # Get the images sorted by distance to centroid (make a copy to not mess up the original metadata)
+    sorted_metadata = metadata.sort_values(by='distance_to_centroid', ascending=False).copy()
+
+    for i in range(0, N, n_cols):
+        fig, axes = plt.subplots(1, n_cols, figsize=(n_cols * 2, 2))
+
+        # Flatten axes to simplify indexing
+        if isinstance(axes, np.ndarray):
+            axes = axes.flatten()
+        else:
+            axes = [axes]
+
+        for idx in range(i, min(i + n_cols, N)):
+            if idx < len(sorted_metadata):
+                # Show the image with family and ID in the title
+                img_path = os.path.join(directory, sorted_metadata.iloc[idx]['file_path'])
+                img = PilImage.open(img_path)
+                axes[idx - i].imshow(img)
+                family = sorted_metadata.iloc[idx]['family']
+                axes[idx - i].set_title(f'{family} (id={idx})', fontsize=8)
+                axes[idx - i].axis('off')
+
+            else:
+                # Hide the subplot if there is no image
+                axes[idx - i].axis('off')
+
+        plt.tight_layout()
+        plt.show()
 
 
+def plot_good_vs_bad_images(good_images_df, outliers, directory, good_images=2):
 
+    for family in outliers['family'].unique():
+        # Get all the image paths sorted
+        image_paths = list(directory+good_images_df[good_images_df.family == family].sort_values('distance_to_centroid')['file_path'])[:good_images]
+        image_paths.extend(list(directory+outliers[outliers.family == family].sort_values('distance_to_centroid', ascending=False)['file_path']))
 
+        if image_paths:
+            # Set number of columns and calculate rows needed
+            n_cols = 7
+            n_images = len(image_paths)
+            n_rows = (n_images + n_cols - 1) // n_cols 
+
+            # Create subplots with appropriate dimensions
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(9, 2 * n_rows))
+
+            # Flatten axes array for easier iteration
+            if n_rows == 1 and n_cols == 1:
+                axes = [axes]
+            else:
+                axes = axes.flatten()
+
+            # Display images
+            for idx, img_path in enumerate(image_paths):
+                img = PilImage.open(img_path).resize((224, 224), PilImage.LANCZOS)
+                axes[idx].imshow(img)
+                axes[idx].axis('off')
+
+            # Add green outline for good images (first good_count images)
+                if idx < good_images:
+                    rect = plt.Rectangle((0, 0), 223, 223, fill=False,
+                                        edgecolor='lime', linewidth=3)
+                    axes[idx].add_patch(rect)
+
+            # Hide any unused subplots
+            for idx in range(n_images, n_rows * n_cols):
+                axes[idx].axis('off')
+
+            plt.suptitle(f"{family}, {good_images_df[good_images_df.family == family].shape[0]} good images left")
+            plt.tight_layout()
+            plt.show()
 
 
 
