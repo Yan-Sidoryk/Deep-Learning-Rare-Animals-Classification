@@ -11,3 +11,10 @@ dist/
 build/
 rare_species/
 *.h5
+
+# YOLO-related files
+*.png
+*.pt
+runs/
+cropped_dataset_zero_shot/
+yolo_dataset/
