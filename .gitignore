@@ -6,3 +6,6 @@ rare_species/
 
 # Python cache
 __pycache__/
+
+# keras tuner
+keras_tuner/
