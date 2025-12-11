@@ -9,3 +9,6 @@ __pycache__/
 
 # keras tuner
 keras_tuner/
+
+# yolo model
+yolov8s.pt

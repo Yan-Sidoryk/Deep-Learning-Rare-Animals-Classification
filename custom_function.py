@@ -44,6 +44,53 @@ def explore_image_files(file_paths, explore_values=False):
         return image_sizes, color_channels, formats, ratios
     
 
+def smallest_largest_image(metadata, directory):
+    
+    # Find largest and smallest images by pixel count
+    largest = metadata.loc[metadata["pixel_count"].idxmax()]
+    smallest = metadata.loc[metadata["pixel_count"].idxmin()]
+
+    largest_image_path = directory + largest["file_path"]
+    largest_pixels = largest["pixel_count"]
+    largest_dims = (largest["width"], largest["height"])
+
+    smallest_image_path = directory + smallest["file_path"]
+    smallest_pixels = smallest["pixel_count"]
+    smallest_dims = (smallest["width"], smallest["height"])
+
+    # Display images
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+    # Largest image
+    img_largest = PilImage.open(largest_image_path)
+    axes[0].imshow(img_largest)
+    axes[0].axis('off')
+    axes[0].set_title(
+        f"LARGEST IMAGE\n{os.path.basename(largest_image_path)}\n"
+        f"{largest_dims[0]} x {largest_dims[1]} pixels\n"
+        f"({largest_pixels:,} total pixels)",
+        fontsize=12, fontweight='bold'
+    )
+
+    # Smallest image
+    img_smallest = PilImage.open(smallest_image_path)
+    axes[1].imshow(img_smallest)
+    axes[1].axis('off')
+    axes[1].set_title(
+        f"SMALLEST IMAGE\n{os.path.basename(smallest_image_path)}\n"
+        f"{smallest_dims[0]} x {smallest_dims[1]} pixels\n"
+        f"({smallest_pixels:,} total pixels)",
+        fontsize=12, fontweight='bold'
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+    
+    print(f"Largest image path:  {largest_image_path}")
+    print(f"\nSmallest image path: {smallest_image_path}")
+
+
 
 # ===== DATA PREPROCESSING =====
 def get_distances(metadata, centroids):
