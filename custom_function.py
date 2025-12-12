@@ -411,7 +411,7 @@ def plot_model_results(history, metric):
     # Build figure
     fig = go.Figure()
 
-    # ---- Train Loss ----
+    # Train
     fig.add_trace(go.Scatter(
         x=epochs,
         y=train_metric,
@@ -421,7 +421,7 @@ def plot_model_results(history, metric):
         hovertemplate='Train ' + metric.title() + ': <b>%{y:.4f}</b><extra></extra>'
     ))
 
-    # ---- Validation Loss ----
+    # Validation
     fig.add_trace(go.Scatter(
         x=epochs,
         y=val_metric,
@@ -431,7 +431,7 @@ def plot_model_results(history, metric):
         hovertemplate='Validation ' + metric.title() + ': <b>%{y:.4f}</b><extra></extra>'
     ))
 
-    # ---- Layout ----
+    # Layout
     fig.update_layout(
         hovermode='x unified',
         title={
