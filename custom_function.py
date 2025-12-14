@@ -2,18 +2,18 @@ import numpy as np
 import pandas as pd
 import math
 import os
-
-import torch
+from tqdm import tqdm
 
 import seaborn as sns
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-from tqdm import tqdm
+import torch
 from PIL import Image as PilImage
 from ultralytics import YOLO
 
+import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications.inception_v3 import preprocess_input, decode_predictions
 from tensorflow.keras.preprocessing import image
@@ -21,8 +21,8 @@ from tensorflow.keras.preprocessing import image
 
 # ===== IMAGE EXPLORATION =====
 def explore_image_files(file_paths, explore_values=False):
-    ''' Open each image to extract extra info'''
-    # Define the variables of smalles and biggest images
+
+    # Open each image to extract extra info
     image_sizes = []
     color_channels = []
     formats = []
@@ -31,7 +31,6 @@ def explore_image_files(file_paths, explore_values=False):
     ratios = []
 
     # Iteration loop for each folder to compare the image sizes
-
     for file_path in file_paths:
         with PilImage.open(file_path) as img:
             image_sizes.append(img.size)
@@ -40,7 +39,7 @@ def explore_image_files(file_paths, explore_values=False):
             ratios.append(img.size[0]/img.size[1])
 
             if explore_values:
-                # Convert to numpy to check the actual data type, Takes alot of time
+                # Convert to numpy to check the actual data type (Takes alot of time!!!)
                 img_array = np.array(img)
 
                 # Value range
@@ -103,6 +102,7 @@ def smallest_largest_image(metadata, directory):
 
 # ===== DATA PREPROCESSING =====
 def get_distances(metadata, centroids):
+
     # Calculate distances to centroids
     distances = []
 
@@ -119,6 +119,7 @@ def get_distances(metadata, centroids):
 
 
 def distance_to_centroid(train_df, test_df):
+
     # Calculate a centroid for each family based on the embedings from the train_df
     centroids = {}
 
@@ -136,7 +137,7 @@ def distance_to_centroid(train_df, test_df):
 
 
 def find_people_yolo(metadata, directory, model_id, conf_threshold, person_class_id):
-    """Find images containing people using YOLO."""
+    # Find images containing people using YOLO
 
     model = YOLO(model_id)
     
@@ -180,7 +181,8 @@ def find_people_yolo(metadata, directory, model_id, conf_threshold, person_class
 
 
 def compute_clip_scores_batch(metadata, directory, clip_processor, clip_model, text_prompts, text_features, batch_size=32):
-    """Process all images and compute CLIP semantic scores."""
+    # Process all images and compute CLIP semantic scores
+
     all_results = []
     file_paths = metadata['file_path'].tolist()
     
@@ -206,7 +208,7 @@ def compute_clip_scores_batch(metadata, directory, clip_processor, clip_model, t
         if not batch_images:
             continue
         
-        image_inputs = clip_processor(images=batch_images, return_tensors="pt", padding=True).to(device)
+        image_inputs = clip_processor(images=batch_images, return_tensors="pt", padding=True)
         
         with torch.no_grad():
             image_features = clip_model.get_image_features(**image_inputs)
@@ -227,7 +229,7 @@ def compute_clip_scores_batch(metadata, directory, clip_processor, clip_model, t
 
 
 def check_animal_presence_batch(img_path, model, threshold):
-    """Check if an image contains an animal using ImageNet predictions."""
+    # Check if an image contains an animal using ImageNet predictions
     
     # Load and preprocess image
     img = image.load_img(img_path, target_size=(299, 299))
@@ -252,8 +254,7 @@ def check_animal_presence_batch(img_path, model, threshold):
         class_name = pred[1]
         prob = float(pred[2])
         
-        # ImageNet classes 0-397 are animals
-        # We can also check by keywords
+        # Check classes by keywords
         animal_keywords = [
             'dog', 'cat', 'bird', 'fish', 'snake', 'turtle', 'frog',
             'insect', 'butterfly', 'spider', 'crab', 'lobster', 'snail',
@@ -268,15 +269,7 @@ def check_animal_presence_batch(img_path, model, threshold):
         if any(keyword in class_name.lower() for keyword in animal_keywords):
             if prob > animal_prob:
                 animal_prob = prob
-                is_animal = True
-    
-    # If no keyword match, use class index range
-    if not is_animal and top_prob > threshold:
-        # Approximate check: most animals are in lower class indices
-        # This is a heuristic - adjust as needed
-        pass
-    
-    is_animal = animal_prob >= threshold
+                is_animal = animal_prob >= threshold
     
     return is_animal, animal_prob, top_class, top_prob
 
@@ -303,7 +296,8 @@ def check_animal_presence(metadata, directory, imagenet_model, threshold=0.02):
 
 
 def generate_embeddings(metadata, directory, image_size, embedding_model):
-    # Create generator with preprocessing form the model
+
+    # Create generator for the model
     datagen = ImageDataGenerator() 
 
     # Create generator 
@@ -319,7 +313,6 @@ def generate_embeddings(metadata, directory, image_size, embedding_model):
         shuffle=False       # Not to mess up the order of data
     )
 
-    # Generate embeddings
     embeddings_list = []
 
     # Calculate number of batches
@@ -333,6 +326,7 @@ def generate_embeddings(metadata, directory, image_size, embedding_model):
         embeddings_list.extend(batch_embeddings)
 
     return embeddings_list
+
 
 
 # ===== VISUALIZATIONS =====
@@ -446,8 +440,85 @@ def plot_family_counts(metadata):
             gridwidth=1
         ),
         font=dict(size=11),
-        margin=dict(l=200, r=100, t=100, b=50),  # More space for family names
+        margin=dict(l=200, r=100, t=100, b=50), 
         showlegend=False
+    )
+
+    fig.show()
+
+
+def plot_taxonomic_hierarchy(metadata):
+
+    phylum_to_family = metadata.groupby(['phylum', 'family']).size().reset_index(name='count')
+
+    # Prepare labels
+    phylum_labels = list(metadata['phylum'].unique())
+    family_labels = list(metadata['family'].unique())
+    labels = phylum_labels + family_labels
+    label_dict = {label: idx for idx, label in enumerate(labels)}
+
+    labels_display = []
+    for label in labels:
+        if label in phylum_labels:
+            labels_display.append(label)
+        else:
+            labels_display.append('')     # Hide family labels
+
+
+    # Prepare sources,targets and values
+    source = []
+    target = []
+    value = []
+    link_hover = []
+
+    for _, row in phylum_to_family.iterrows():
+        source_idx = label_dict[row['phylum']]
+        target_idx = label_dict[row['family']]
+        count = row['count']
+        
+        source.append(source_idx)
+        target.append(target_idx)
+        value.append(count)
+        
+        # Custom hover text for links
+        link_hover.append(f"Phylum: <b>{row['phylum']}</b><br>Family: <b>{row['family']}</b><br>Images: <b>{count}</b>")
+
+    # Custom hover for nodes
+    node_hover = []
+    for label in labels:
+        if label in phylum_labels:
+            total = metadata[metadata['phylum'] == label].shape[0]
+            node_hover.append(f"Phylum: <b>{label}</b><br>Total Images: <b>{total}</b>")
+        else:
+            total = metadata[metadata['family'] == label].shape[0]
+            node_hover.append(f"Family: <b>{label}</b><br>Total Images: <b>{total}</b>")
+
+    # Plot
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=labels_display,
+            color='#6366f1',
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=node_hover
+        ),
+        link=dict(
+            source=source,
+            target=target,
+            value=value,
+            color='rgba(99, 102, 241, 0.3)',
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=link_hover
+        )
+    )])
+
+    fig.update_layout(
+        title='<b>Taxonomic Hierarchy: Phylum → Family</b>',
+        font=dict(size=12),
+        height=1200,
+        width=1200
     )
 
     fig.show()
@@ -481,7 +552,7 @@ def plot_color_chanels_counts(metadata):
         text=color_counts.values,
         textposition='outside',
         textfont=dict(size=12),
-        hovertemplate='<b>%{x}</b><br>Images: %{y}<br>Percentage: %{customdata:.2f}%<extra></extra>',
+        hovertemplate='<b>%{x}</b><br>Images: <b>%{y}</b><br>Percentage: <b>%{customdata:.2f}%</b><extra></extra>',
         customdata=(color_counts.values / len(metadata)) * 100
     ))
 
@@ -515,10 +586,10 @@ def plot_color_chanels_counts(metadata):
 
 
 def plot_image_size_scatter(metadata, common_ratio, width_max):
-    # Create figure with custom styling
+
     fig = go.Figure()
 
-    # Add scatter plot with better styling
+    # Create scatter plot of image sizes
     fig.add_trace(go.Scatter(
         x=metadata['width'],
         y=metadata['height'],
@@ -530,10 +601,10 @@ def plot_image_size_scatter(metadata, common_ratio, width_max):
             line=dict(width=0)
         ),
         name='Images',
-        hovertemplate='<b>Width:</b> %{x}px<br><b>Height:</b> %{y}px<extra></extra>'
+        hovertemplate='Width: <b>%{x}px</b><br>Height:<b> %{y}px</b><extra></extra>'
     ))
 
-    # Add aspect ratio reference line (4:3)
+    # Add aspect ratio reference line
     max_y = metadata['height'].max()
     max_x_for_ratio = common_ratio * max_y
     fig.add_trace(go.Scatter(
@@ -541,7 +612,7 @@ def plot_image_size_scatter(metadata, common_ratio, width_max):
         y=[0, max_y],
         mode='lines',
         line=dict(color='#ef4444', width=2.5, dash='dash'),
-        name='4:3 Aspect Ratio',
+        name=f'{round(common_ratio*3)}:3 Aspect Ratio',
         hoverinfo='skip'
     ))
 
@@ -555,7 +626,7 @@ def plot_image_size_scatter(metadata, common_ratio, width_max):
         hoverinfo='skip'
     ))
 
-    # Update layout with legend on the right and bold title
+    # Update layout
     fig.update_layout(
         title={
             'text': '<b>Image Size Distribution Analysis</b>',
@@ -601,7 +672,7 @@ def plot_image_size_scatter(metadata, common_ratio, width_max):
 
 
 def plot_yolo_detections(metadata, directory, N, n_cols=10):
-    """Display images where YOLO detected people."""
+    # Display images where YOLO detected people
 
     person_images = metadata[metadata['has_person'] == True].copy()
     person_images = person_images.sort_values('person_confidence', ascending=False)
@@ -624,7 +695,7 @@ def plot_yolo_detections(metadata, directory, N, n_cols=10):
             img = PilImage.open(directory + row['file_path'])
             axes[idx].imshow(img)
 
-            # Draw bounding box
+            # Add a bounding box
             if row['person_bbox'] is not None:
                 x1, y1, x2, y2 = row['person_bbox']
                 rect = Rectangle((x1, y1), x2-x1, y2-y1, 
@@ -646,7 +717,7 @@ def plot_yolo_detections(metadata, directory, N, n_cols=10):
 
 
 def plot_non_animal_images(metadata, directory, n_rows=5, n_cols=10):
-    """Display images where ImageNet didn't detect animals."""
+    # Display images where ImageNet didn't detect animals
 
     non_animals = metadata[metadata['has_animal'] == False].copy()
     non_animals = non_animals.sort_values('animal_confidence', ascending=True)
@@ -682,7 +753,7 @@ def plot_non_animal_images(metadata, directory, n_rows=5, n_cols=10):
 
 
 def plot_clip_outliers(metadata, directory, N, n_cols=10):
-    """Display CLIP outliers"""
+    # Display CLIP outliers
 
     bad_images = metadata[metadata['clip_semantic_quality'] < 0].copy()
     bad_images = bad_images.sort_values('clip_semantic_quality', ascending=True)
@@ -753,7 +824,6 @@ def plot_model_results(history_main, metric, history_ft=None):
 
     # Epochs total
     epochs = np.arange(1, len(train_all) + 1)
-
 
     # Build figure
     fig = go.Figure()
@@ -828,6 +898,7 @@ def plot_model_results(history_main, metric, history_ft=None):
 
 
 def plot_confusion_matrix(cm):
+
     # Normalize for better color scaling
     cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
@@ -835,7 +906,7 @@ def plot_confusion_matrix(cm):
     fig, ax = plt.subplots(figsize=(24, 20))
     sns.heatmap(cm_normalized, 
                 annot=False, 
-                cmap='viridis',  
+                cmap='Blues',  
                 square=True,
                 linewidths=0,
                 ax=ax)
@@ -856,7 +927,8 @@ def plot_confusion_matrix(cm):
 
 # -----     IMAGES     -----
 def plot_images_from_directory(directory, img_per_class=5):
-    # Print 5 example images of each class (+-3min)
+
+    # Print example images of each class
     for label in os.listdir(directory):
         path = directory + str(label)
 
@@ -905,7 +977,7 @@ def plot_images_from_generator(generator, num_batches=False):
 
         # Plot the images in the current batch
         batch_size_actual = images.shape[0]
-        n_cols = min(8, batch_size_actual)                  # <-- set max columns per row
+        n_cols = min(8, batch_size_actual)                  # <-- max columns per row
         n_rows = math.ceil(batch_size_actual / n_cols)
 
         plt.figure(figsize=(3 * n_cols, 3 * n_rows))
@@ -914,7 +986,7 @@ def plot_images_from_generator(generator, num_batches=False):
             ax = plt.subplot(n_rows, n_cols, j + 1)
             plt.imshow(images[j])
 
-            # Get the index of the highest probability to find the class name
+            # Get the class name
             label_idx = np.argmax(labels[j])
             plt.title(class_names[label_idx], fontsize=9)
             plt.axis("off")
@@ -982,7 +1054,7 @@ def plot_good_vs_bad_images(good_images_df, outliers, directory, good_images=2):
                 axes[idx].imshow(img)
                 axes[idx].axis('off')
 
-            # Add green outline for good images (first good_count images)
+            # Add green outline for good images
                 if idx < good_images:
                     rect = plt.Rectangle((0, 0), 223, 223, fill=False,
                                         edgecolor='lime', linewidth=3)
@@ -999,7 +1071,7 @@ def plot_good_vs_bad_images(good_images_df, outliers, directory, good_images=2):
 
 def plot_datagen_sample(generator): 
     
-   # Get a fresh batch
+   # Get a batch of images
     images, labels = next(generator)
 
     # Get class names
@@ -1031,11 +1103,11 @@ def plot_misclassifications(test_generator, y_pred_classes, y_true, class_names,
         
         actual_calss = class_names[y_true[idx]]
         predicted_class = class_names[y_pred_classes[idx]]
-        # Plot some misclassified images
+
         fig, axes = plt.subplots(1, 3, figsize=(9, 3))
 
         # Plot the misclassified image
-        img_path = test_generator.filepaths[idx]  # full path to image
+        img_path = test_generator.filepaths[idx] 
         img = plt.imread(img_path)
         axes[0].imshow(img)
         axes[0].axis('off')
@@ -1048,6 +1120,7 @@ def plot_misclassifications(test_generator, y_pred_classes, y_true, class_names,
         axes[1].axis('off')
         axes[1].set_title(f"Actual class:\n{actual_calss.title()}")
 
+        # Add a green box around correct class
         height, width = img.shape[:2]
         rect = plt.Rectangle((0, 0), width, height, fill=False, edgecolor='lime', linewidth=5)
         axes[1].add_patch(rect)
@@ -1059,6 +1132,7 @@ def plot_misclassifications(test_generator, y_pred_classes, y_true, class_names,
         axes[2].axis('off')
         axes[2].set_title(f"Predicted class:\n{predicted_class.title()}")
 
+         # Add a red box around incorrect class
         height, width = img.shape[:2]
         rect = plt.Rectangle((0, 0), width, height, fill=False, edgecolor='tomato', linewidth=5)
         axes[2].add_patch(rect)
@@ -1071,22 +1145,22 @@ def plot_misclassifications(test_generator, y_pred_classes, y_true, class_names,
 def predict_with_metadata(model, test_generator, test_df, phylum_to_families):
     all_preds = []
 
-    # Make sure generator is reset
+    # Reset the generator to the beginning
     test_generator.reset()
 
     # Loop over batches
     for i in range(len(test_generator)):
-        x_batch, y_batch = test_generator[i]  # batch of images
+        x_batch, y_batch = test_generator[i] 
         batch_start = i * test_generator.batch_size
         batch_end = batch_start + x_batch.shape[0]
         
-        # Get corresponding phyla from dataframe
+        # Get corresponding phylum from dataframe
         phylum_batch = test_df['phylum'].iloc[batch_start:batch_end].values
         
         # Get model logits
         logits = model.predict(x_batch)  # shape: (batch_size, 202)
         
-        # Apply logit filtering per image
+        # Apply filtering per image
         batch_preds = []
         for j in range(len(x_batch)):
             phylum = phylum_batch[j]
