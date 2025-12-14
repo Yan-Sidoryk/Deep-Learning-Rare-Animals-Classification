@@ -14,6 +14,5 @@ ultralytics
 
 tqdm
 keras-tuner
-# focal-loss
 # conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0     # cuda drivers for tensorflow
-# conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia  # i think i dont that but dont delete for now pls
+# conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia  # unused in the final modeling
